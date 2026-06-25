@@ -1,0 +1,343 @@
+services:
+  # ═══════════════════════════════════════════════
+  #  DATABASES
+  # ═══════════════════════════════════════════════
+
+  product-catalog-db:
+    image: postgres:16-alpine
+    container_name: product-catalog-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: product_catalog
+      POSTGRES_USER: catalog_user
+      POSTGRES_PASSWORD: catalog_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - catalog_db_data:/var/lib/postgresql/data
+      - ./services/product-catalog/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog_user -d product_catalog"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  product-inventory-db:
+    image: postgres:16-alpine
+    container_name: product-inventory-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: product_inventory
+      POSTGRES_USER: inventory_user
+      POSTGRES_PASSWORD: inventory_pass
+    ports:
+      - "5433:5432"
+    volumes:
+      - inventory_db_data:/var/lib/postgresql/data
+      - ./services/product-inventory/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U inventory_user -d product_inventory"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  order-management-db:
+    image: postgres:16-alpine
+    container_name: order-management-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: order_management
+      POSTGRES_USER: order_user
+      POSTGRES_PASSWORD: order_pass
+    ports:
+      - "5434:5432"
+    volumes:
+      - order_db_data:/var/lib/postgresql/data
+      - ./services/order-management/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U order_user -d order_management"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  profile-management-db:
+    image: postgres:16-alpine
+    container_name: profile-management-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: profile_management
+      POSTGRES_USER: profile_user
+      POSTGRES_PASSWORD: profile_pass
+    ports:
+      - "5435:5432"
+    volumes:
+      - profile_db_data:/var/lib/postgresql/data
+      - ./services/profile-management/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U profile_user -d profile_management"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  shipping-handling-db:
+    image: postgres:16-alpine
+    container_name: shipping-handling-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: shipping_handling
+      POSTGRES_USER: shipping_user
+      POSTGRES_PASSWORD: shipping_pass
+    ports:
+      - "5436:5432"
+    volumes:
+      - shipping_db_data:/var/lib/postgresql/data
+      - ./services/shipping-handling/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U shipping_user -d shipping_handling"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  contact-support-db:
+    image: postgres:16-alpine
+    container_name: contact-support-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: contact_support
+      POSTGRES_USER: support_user
+      POSTGRES_PASSWORD: support_pass
+    ports:
+      - "5437:5432"
+    volumes:
+      - support_db_data:/var/lib/postgresql/data
+      - ./services/contact-support/db/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - ecommerce-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U support_user -d contact_support"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  # ═══════════════════════════════════════════════
+  #  BACKEND MICROSERVICES
+  # ═══════════════════════════════════════════════
+
+  product-catalog:
+    build:
+      context: ./services/product-catalog
+      dockerfile: Dockerfile
+    container_name: product-catalog
+    restart: unless-stopped
+    environment:
+      PORT: 3001
+      DB_HOST: product-catalog-db
+      DB_PORT: 5432
+      DB_NAME: product_catalog
+      DB_USER: catalog_user
+      DB_PASSWORD: catalog_pass
+      NODE_ENV: production
+    ports:
+      - "3001:3001"
+    networks:
+      - ecommerce-net
+    depends_on:
+      product-catalog-db:
+        condition: service_healthy
+
+  product-inventory:
+    build:
+      context: ./services/product-inventory
+      dockerfile: Dockerfile
+    container_name: product-inventory
+    restart: unless-stopped
+    environment:
+      PORT: 3002
+      DB_HOST: product-inventory-db
+      DB_PORT: 5432
+      DB_NAME: product_inventory
+      DB_USER: inventory_user
+      DB_PASSWORD: inventory_pass
+      NODE_ENV: production
+    ports:
+      - "3002:3002"
+    networks:
+      - ecommerce-net
+    depends_on:
+      product-inventory-db:
+        condition: service_healthy
+
+  profile-management:
+    build:
+      context: ./services/profile-management
+      dockerfile: Dockerfile
+    container_name: profile-management
+    restart: unless-stopped
+    environment:
+      PORT: 3004
+      DB_HOST: profile-management-db
+      DB_PORT: 5432
+      DB_NAME: profile_management
+      DB_USER: profile_user
+      DB_PASSWORD: profile_pass
+      JWT_SECRET: ecommerce-microservices-jwt-secret-key-2024
+      NODE_ENV: production
+    ports:
+      - "3004:3004"
+    networks:
+      - ecommerce-net
+    depends_on:
+      profile-management-db:
+        condition: service_healthy
+
+  order-management:
+    build:
+      context: ./services/order-management
+      dockerfile: Dockerfile
+    container_name: order-management
+    restart: unless-stopped
+    environment:
+      PORT: 3003
+      DB_HOST: order-management-db
+      DB_PORT: 5432
+      DB_NAME: order_management
+      DB_USER: order_user
+      DB_PASSWORD: order_pass
+      INVENTORY_SERVICE_URL: http://product-inventory:3002
+      PROFILE_SERVICE_URL: http://profile-management:3004
+      SHIPPING_SERVICE_URL: http://shipping-handling:3005
+      PRODUCT_SERVICE_URL: http://product-catalog:3001
+      NODE_ENV: production
+    ports:
+      - "3003:3003"
+    networks:
+      - ecommerce-net
+    depends_on:
+      order-management-db:
+        condition: service_healthy
+      product-inventory:
+        condition: service_started
+      profile-management:
+        condition: service_started
+      shipping-handling:
+        condition: service_started
+      product-catalog:
+        condition: service_started
+
+  shipping-handling:
+    build:
+      context: ./services/shipping-handling
+      dockerfile: Dockerfile
+    container_name: shipping-handling
+    restart: unless-stopped
+    environment:
+      PORT: 3005
+      DB_HOST: shipping-handling-db
+      DB_PORT: 5432
+      DB_NAME: shipping_handling
+      DB_USER: shipping_user
+      DB_PASSWORD: shipping_pass
+      NODE_ENV: production
+    ports:
+      - "3005:3005"
+    networks:
+      - ecommerce-net
+    depends_on:
+      shipping-handling-db:
+        condition: service_healthy
+
+  contact-support:
+    build:
+      context: ./services/contact-support
+      dockerfile: Dockerfile
+    container_name: contact-support
+    restart: unless-stopped
+    environment:
+      PORT: 3006
+      DB_HOST: contact-support-db
+      DB_PORT: 5432
+      DB_NAME: contact_support
+      DB_USER: support_user
+      DB_PASSWORD: support_pass
+      NODE_ENV: production
+    ports:
+      - "3006:3006"
+    networks:
+      - ecommerce-net
+    depends_on:
+      contact-support-db:
+        condition: service_healthy
+
+  # ═══════════════════════════════════════════════
+  #  FRONTEND
+  # ═══════════════════════════════════════════════
+
+  ecommerce-ui:
+    build:
+      context: ./services/ecommerce-ui
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: /api
+    container_name: ecommerce-ui
+    restart: unless-stopped
+    environment:
+      VITE_API_BASE_URL: /api
+    ports:
+      - "3000:80"
+    networks:
+      - ecommerce-net
+    depends_on:
+      - api-gateway
+
+  # ═══════════════════════════════════════════════
+  #  API GATEWAY
+  # ═══════════════════════════════════════════════
+
+  api-gateway:
+    build:
+      context: ./api-gateway
+      dockerfile: Dockerfile
+    container_name: api-gateway
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    networks:
+      - ecommerce-net
+    depends_on:
+      - product-catalog
+      - product-inventory
+      - order-management
+      - profile-management
+      - shipping-handling
+      - contact-support
+
+# ═══════════════════════════════════════════════
+#  VOLUMES
+# ═══════════════════════════════════════════════
+
+volumes:
+  catalog_db_data:
+  inventory_db_data:
+  order_db_data:
+  profile_db_data:
+  shipping_db_data:
+  support_db_data:
+
+# ═══════════════════════════════════════════════
+#  NETWORKS
+# ═══════════════════════════════════════════════
+
+networks:
+  ecommerce-net:
+    driver: bridge
+    name: ecommerce-net
